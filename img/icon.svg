@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#0f0f23"/>
+  <circle cx="256" cy="240" r="160" fill="none" stroke="#4a9eff" stroke-width="12"/>
+  <line x1="96" y1="240" x2="416" y2="240" stroke="#4a9eff" stroke-width="12"/>
+  <circle cx="256" cy="240" r="40" fill="#0f0f23" stroke="#4a9eff" stroke-width="12"/>
+  <circle cx="256" cy="240" r="18" fill="#4a9eff"/>
+  <text x="256" y="450" text-anchor="middle" fill="#ffd700" font-family="Arial, sans-serif" font-weight="800" font-size="56">PVP</text>
+</svg>
