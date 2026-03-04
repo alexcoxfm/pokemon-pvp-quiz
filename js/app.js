@@ -1,6 +1,6 @@
 // app.js — Entry point, screen navigation, service worker registration
 
-import { getGamemaster, getRankings, getFormats, getPokemonData } from './data.js';
+import { getGamemaster, getRankings, getFormats, getPokemonData, getMoveData } from './data.js';
 import { QuizSession, generateExplanation } from './quiz.js';
 import {
   showScreen, renderCups, showLastScore, renderQuizHeader,
@@ -10,6 +10,7 @@ import {
 
 let gamemaster = null;
 let pokemonMap = null;
+let moveMap = null;
 let currentSession = null;
 let lastScore = null;
 
@@ -23,6 +24,7 @@ async function init() {
   try {
     gamemaster = await getGamemaster();
     pokemonMap = getPokemonData(gamemaster);
+    moveMap = getMoveData(gamemaster);
     setPokemonMap(pokemonMap);
 
     // Render special cups from gamemaster
@@ -146,7 +148,8 @@ function submitAnswer(selectedSpeciesId) {
     roundData.result,
     roundData.pokemonA,
     roundData.pokemonB,
-    pokemonMap
+    pokemonMap,
+    moveMap
   );
 
   renderResult(roundData);

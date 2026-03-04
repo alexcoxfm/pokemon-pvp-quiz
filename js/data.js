@@ -119,3 +119,16 @@ export function getPokemonData(gamemaster) {
   }
   return map;
 }
+
+export function getMoveData(gamemaster) {
+  // Build a map of moveId -> display name from gamemaster
+  const map = new Map();
+  if (!gamemaster || !gamemaster.moves) return map;
+
+  for (const move of gamemaster.moves) {
+    if (move.moveId && move.name) {
+      map.set(move.moveId, move.name);
+    }
+  }
+  return map;
+}

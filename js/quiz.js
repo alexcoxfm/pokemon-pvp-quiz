@@ -1,6 +1,7 @@
 // quiz.js — Pair selection, winner determination, explanation generation
 
 import { analyzeTypeMatchup } from './type-chart.js';
+import { getDisplayName } from './pokemon-mapper.js';
 
 const POOL_SIZE = 100;
 const ROUNDS_PER_SESSION = 10;
@@ -172,9 +173,25 @@ function describeDominance(winnerRating) {
 }
 
 /**
+ * Format a raw move ID (e.g. "POWER_UP_PUNCH") into a display name.
+ * Uses the moveMap from gamemaster if available, otherwise formats the ID.
+ */
+function formatMoveName(moveId, moveMap) {
+  if (moveMap) {
+    const name = moveMap.get(moveId);
+    if (name) return name;
+  }
+  // Fallback: format ALL_CAPS_UNDERSCORE into Title Case
+  return moveId
+    .split('_')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
  * Generate explanation for a quiz result.
  */
-export function generateExplanation(result, pokemonA, pokemonB, pokemonMap) {
+export function generateExplanation(result, pokemonA, pokemonB, pokemonMap, moveMap) {
   const explanation = {
     types: '',
     rating: null,
@@ -195,16 +212,13 @@ export function generateExplanation(result, pokemonA, pokemonB, pokemonMap) {
     const lines = [];
 
     for (const adv of analysis.advantages) {
-      const attacker = adv.side === 'A' ? pokemonA : pokemonB;
       const defender = adv.side === 'A' ? pokemonB : pokemonA;
-      const attackerName = attacker.speciesName || attacker.speciesId;
-      const defenderName = defender.speciesName || defender.speciesId;
+      const defenderName = getDisplayName(defender.speciesId, pokemonMap);
       const mult = adv.multiplier >= 2.5 ? 'double super effective' : 'super effective';
       lines.push(`<span class="advantage">${capitalize(adv.type)}</span> is ${mult} against ${defenderName}`);
     }
 
     for (const dis of analysis.disadvantages) {
-      const attacker = dis.side === 'A' ? pokemonA : pokemonB;
       const mult = dis.multiplier <= 0.4 ? 'double resisted' : 'resisted';
       lines.push(`<span class="disadvantage">${capitalize(dis.type)}</span> is ${mult} by the opponent`);
     }
@@ -219,8 +233,8 @@ export function generateExplanation(result, pokemonA, pokemonB, pokemonMap) {
   // Rating data
   if (result.method !== 'toss-up' && result.winnerRating) {
     explanation.rating = {
-      winner: result.winner.speciesName || result.winner.speciesId,
-      loser: result.loser.speciesName || result.loser.speciesId,
+      winner: getDisplayName(result.winner.speciesId, pokemonMap),
+      loser: getDisplayName(result.loser.speciesId, pokemonMap),
       winnerRating: Math.round(result.winnerRating),
       loserRating: Math.round(result.loserRating),
     };
@@ -230,9 +244,9 @@ export function generateExplanation(result, pokemonA, pokemonB, pokemonMap) {
   if (result.winner?.moveset) {
     const moves = result.winner.moveset;
     const moveParts = [];
-    if (moves.length > 0) moveParts.push(`Fast: <span class="move-tag">${moves[0]}</span>`);
-    if (moves.length > 1) moveParts.push(`Charged: <span class="move-tag">${moves[1]}</span>`);
-    if (moves.length > 2) moveParts.push(`<span class="move-tag">${moves[2]}</span>`);
+    if (moves.length > 0) moveParts.push(`Fast: <span class="move-tag">${formatMoveName(moves[0], moveMap)}</span>`);
+    if (moves.length > 1) moveParts.push(`Charged: <span class="move-tag">${formatMoveName(moves[1], moveMap)}</span>`);
+    if (moves.length > 2) moveParts.push(`<span class="move-tag">${formatMoveName(moves[2], moveMap)}</span>`);
     explanation.moveset = moveParts.join(' ');
   }
 
