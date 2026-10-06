@@ -1,15 +1,17 @@
 // app.js — Entry point, screen navigation, service worker registration
 
-import { getGamemaster, getRankings, getFormats, getPokemonData } from './data.js';
+import { getGamemaster, getRankings, getFormats, getPokemonData, getMovesData, rankingsExist } from './data.js';
 import { QuizSession, generateExplanation } from './quiz.js';
 import {
   showScreen, renderCups, showLastScore, renderQuizHeader,
   renderPokemonCard, showQuizLoading, renderResult,
-  renderExplanation, renderSummary, setPokemonMap
+  renderExplanation, renderSummary, setPokemonMap, hideCup, showMetaDate
 } from './ui.js';
 
 let gamemaster = null;
 let pokemonMap = null;
+let movesMap = null;
+let quizRequestId = 0;
 let currentSession = null;
 let lastScore = null;
 
@@ -23,18 +25,22 @@ async function init() {
   try {
     gamemaster = await getGamemaster();
     pokemonMap = getPokemonData(gamemaster);
+    movesMap = getMovesData(gamemaster);
     setPokemonMap(pokemonMap);
+    showMetaDate(gamemaster.timestamp);
 
-    // Render special cups from gamemaster
+    // Render special cups from gamemaster, then hide any PvPoke hasn't ranked
     const formats = getFormats(gamemaster);
     renderCups(formats);
+    for (const f of formats) {
+      rankingsExist(f.cp, f.cup).then(ok => { if (ok === false) hideCup(f.cup, f.cp); });
+    }
 
     // Show last score if available
-    const saved = localStorage.getItem('lastScore');
-    if (saved) {
-      const { score, total } = JSON.parse(saved);
-      showLastScore(score, total);
-    }
+    try {
+      const saved = JSON.parse(localStorage.getItem('lastScore'));
+      if (saved) showLastScore(saved.score, saved.total, saved.league);
+    } catch { /* ignore bad or unavailable storage */ }
   } catch (err) {
     console.error('Failed to load gamemaster:', err);
   }
@@ -56,6 +62,7 @@ function setupEventListeners() {
 
   // Back button (quiz screen)
   document.getElementById('btn-back').addEventListener('click', () => {
+    quizRequestId++; // cancel any quiz still loading
     currentSession = null;
     showScreen('screen-home');
   });
@@ -75,6 +82,7 @@ function setupEventListeners() {
 
   // Next round button (result screen)
   document.getElementById('btn-next').addEventListener('click', () => {
+    if (!currentSession) return;
     if (currentSession.isComplete) {
       showSummary();
     } else {
@@ -103,26 +111,44 @@ function setupEventListeners() {
 // === Quiz Flow ===
 
 async function startQuiz(league, cup, leagueName) {
+  const requestId = ++quizRequestId;
   showScreen('screen-quiz');
   showQuizLoading(true);
 
   try {
+    if (!gamemaster) {
+      // First load failed (e.g. offline on first launch) — try again now
+      gamemaster = await getGamemaster();
+      pokemonMap = getPokemonData(gamemaster);
+      movesMap = getMovesData(gamemaster);
+      setPokemonMap(pokemonMap);
+    }
     const rankings = await getRankings(league, cup);
-    currentSession = new QuizSession(rankings, leagueName);
-    currentSession.league = league;
-    currentSession.cup = cup;
+    if (requestId !== quizRequestId) return; // user backed out while loading
+
+    const session = new QuizSession(rankings, leagueName);
+    if (session.totalRounds === 0) throw new Error('No matchup data for this league');
+    session.league = league;
+    session.cup = cup;
+    currentSession = session;
     showNextRound();
   } catch (err) {
+    if (requestId !== quizRequestId) return;
     console.error('Failed to load rankings:', err);
     showQuizLoading(false);
-    alert('Failed to load league data. Check your connection and try again.');
+    alert(err.status === 404
+      ? `PvPoke hasn't published rankings for ${leagueName} yet.`
+      : 'Failed to load league data. Check your connection and try again.');
     showScreen('screen-home');
   }
 }
 
 function showNextRound() {
   const pair = currentSession.nextRound();
-  if (!pair) return;
+  if (!pair) {
+    showSummary();
+    return;
+  }
 
   renderQuizHeader(currentSession.leagueName, currentSession.currentRound, currentSession.totalRounds);
   renderPokemonCard('a', pair.pokemonA);
@@ -146,7 +172,8 @@ function submitAnswer(selectedSpeciesId) {
     roundData.result,
     roundData.pokemonA,
     roundData.pokemonB,
-    pokemonMap
+    pokemonMap,
+    movesMap
   );
 
   renderResult(roundData);
@@ -167,9 +194,13 @@ function showSummary() {
   renderSummary(currentSession);
 
   // Save last score
-  const scoreData = { score: currentSession.score, total: currentSession.totalRounds };
-  localStorage.setItem('lastScore', JSON.stringify(scoreData));
-  showLastScore(scoreData.score, scoreData.total);
+  const scoreData = {
+    score: currentSession.score,
+    total: currentSession.rounds.length,
+    league: currentSession.leagueName,
+  };
+  try { localStorage.setItem('lastScore', JSON.stringify(scoreData)); } catch { /* storage unavailable */ }
+  showLastScore(scoreData.score, scoreData.total, scoreData.league);
 
   showScreen('screen-summary');
 }

@@ -1,244 +1,199 @@
 // quiz.js — Pair selection, winner determination, explanation generation
 
-import { analyzeTypeMatchup } from './type-chart.js';
+import { getTypeMatchup } from './type-chart.js';
 
 const POOL_SIZE = 100;
 const ROUNDS_PER_SESSION = 10;
 
 /**
- * Get the base species ID (strip shadow, _b suffixes).
+ * Get the base species ID (strip shadow suffix) so we never pit a Pokemon
+ * against its own shadow form.
  */
 function baseSpeciesId(speciesId) {
-  return speciesId.replace(/_shadow$/, '').replace(/_b$/, '');
+  return speciesId.replace(/_shadow$/, '');
+}
+
+function pairKey(idA, idB) {
+  return idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`;
 }
 
 /**
- * Select a quiz pair from the rankings pool.
- * Prefers picking Pokemon B from A's matchups/counters for data-rich pairings.
+ * Build an index of every head-to-head result PvPoke published for the pool.
+ *
+ * In PvPoke's rankings, each entry's `matchups` (best wins) and `counters`
+ * (worst losses) carry a battle rating from THAT entry's point of view:
+ * > 500 means it wins, < 500 means it loses, 500 is a draw.
  */
-export function selectQuizPair(rankings, usedPokemon = new Set()) {
-  const pool = rankings.slice(0, POOL_SIZE);
+export function buildMatchupIndex(pool) {
+  const ids = new Set(pool.map(p => p.speciesId));
+  const index = new Map();
 
-  // Filter out already-used Pokemon
-  const available = pool.filter(p => !usedPokemon.has(p.speciesId));
-  if (available.length < 2) {
-    // Reset if we've used too many
-    return selectQuizPair(rankings, new Set());
-  }
-
-  // Pick Pokemon A randomly
-  const idxA = Math.floor(Math.random() * available.length);
-  const pokemonA = available[idxA];
-
-  // Try to pick B from A's matchups or counters
-  let pokemonB = null;
-  const baseA = baseSpeciesId(pokemonA.speciesId);
-
-  // Combine matchups and counters for candidate pool
-  const relatedIds = new Set();
-  if (pokemonA.matchups) {
-    for (const m of pokemonA.matchups) {
-      relatedIds.add(m.opponent);
+  for (const p of pool) {
+    for (const m of [...(p.matchups || []), ...(p.counters || [])]) {
+      if (!ids.has(m.opponent) || m.opponent === p.speciesId) continue;
+      if (baseSpeciesId(m.opponent) === baseSpeciesId(p.speciesId)) continue;
+      const key = pairKey(p.speciesId, m.opponent);
+      if (index.has(key)) continue;
+      index.set(key, { from: p.speciesId, opponent: m.opponent, rating: m.rating });
     }
   }
-  if (pokemonA.counters) {
-    for (const c of pokemonA.counters) {
-      relatedIds.add(c.opponent);
-    }
-  }
-
-  // Filter related to those in our pool and not used
-  const relatedInPool = available.filter(p =>
-    p.speciesId !== pokemonA.speciesId &&
-    relatedIds.has(p.speciesId) &&
-    baseSpeciesId(p.speciesId) !== baseA
-  );
-
-  if (relatedInPool.length > 0) {
-    pokemonB = relatedInPool[Math.floor(Math.random() * relatedInPool.length)];
-  }
-
-  // Fallback: random different Pokemon from pool
-  if (!pokemonB) {
-    const candidates = available.filter(p =>
-      p.speciesId !== pokemonA.speciesId &&
-      baseSpeciesId(p.speciesId) !== baseA
-    );
-    if (candidates.length > 0) {
-      pokemonB = candidates[Math.floor(Math.random() * candidates.length)];
-    } else {
-      // Last resort: just pick the next different Pokemon
-      pokemonB = available.find(p => p.speciesId !== pokemonA.speciesId) || available[1] || available[0];
-    }
-  }
-
-  return { pokemonA, pokemonB };
+  return index;
 }
 
 /**
- * Determine the winner between two Pokemon using rankings data.
- * Returns { winner, loser, rating, method }
+ * Select a quiz pair that has real head-to-head data, avoiding Pokemon
+ * already used this session when possible.
+ */
+export function selectQuizPair(pool, index, usedPokemon = new Set()) {
+  const byId = new Map(pool.map(p => [p.speciesId, p]));
+  const entries = [...index.values()];
+  if (entries.length === 0) return null;
+
+  let candidates = entries.filter(e => !usedPokemon.has(e.from) && !usedPokemon.has(e.opponent));
+  if (candidates.length === 0) candidates = entries;
+
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  // Randomize which side each Pokemon appears on
+  const [idA, idB] = Math.random() < 0.5 ? [pick.from, pick.opponent] : [pick.opponent, pick.from];
+  return { pokemonA: byId.get(idA), pokemonB: byId.get(idB) };
+}
+
+/**
+ * Determine the winner between two Pokemon using PvPoke head-to-head data.
+ * Returns { winner, loser, winnerRating, loserRating, method }
+ * winnerRating/loserRating are battle ratings (0–1000) that sum to 1000.
  */
 export function determineWinner(pokemonA, pokemonB) {
-  // Check A's matchups for B (A wins)
-  if (pokemonA.matchups) {
-    const matchup = pokemonA.matchups.find(m => m.opponent === pokemonB.speciesId);
-    if (matchup) {
-      return {
-        winner: pokemonA,
-        loser: pokemonB,
-        winnerRating: matchup.rating,
-        loserRating: 1000 - matchup.rating,
-        method: 'matchup'
-      };
+  const lookups = [
+    [pokemonA, pokemonB],
+    [pokemonB, pokemonA],
+  ];
+
+  for (const [self, other] of lookups) {
+    const entry = [...(self.matchups || []), ...(self.counters || [])]
+      .find(m => m.opponent === other.speciesId);
+    if (!entry) continue;
+
+    if (entry.rating === 500) {
+      return { winner: null, loser: null, winnerRating: 500, loserRating: 500, method: 'toss-up' };
     }
-  }
-
-  // Check A's counters for B (B wins)
-  if (pokemonA.counters) {
-    const counter = pokemonA.counters.find(c => c.opponent === pokemonB.speciesId);
-    if (counter) {
-      return {
-        winner: pokemonB,
-        loser: pokemonA,
-        winnerRating: counter.rating,
-        loserRating: 1000 - counter.rating,
-        method: 'counter'
-      };
-    }
-  }
-
-  // Check B's matchups for A (B wins)
-  if (pokemonB.matchups) {
-    const matchup = pokemonB.matchups.find(m => m.opponent === pokemonA.speciesId);
-    if (matchup) {
-      return {
-        winner: pokemonB,
-        loser: pokemonA,
-        winnerRating: matchup.rating,
-        loserRating: 1000 - matchup.rating,
-        method: 'matchup'
-      };
-    }
-  }
-
-  // Check B's counters for A (A wins)
-  if (pokemonB.counters) {
-    const counter = pokemonB.counters.find(c => c.opponent === pokemonA.speciesId);
-    if (counter) {
-      return {
-        winner: pokemonA,
-        loser: pokemonB,
-        winnerRating: counter.rating,
-        loserRating: 1000 - counter.rating,
-        method: 'counter'
-      };
-    }
-  }
-
-  // Fallback: compare overall ratings
-  const ratingA = pokemonA.rating || 0;
-  const ratingB = pokemonB.rating || 0;
-
-  if (Math.abs(ratingA - ratingB) < 1) {
-    // Too close to call
+    const selfWins = entry.rating > 500;
     return {
-      winner: null,
-      loser: null,
-      winnerRating: ratingA,
-      loserRating: ratingB,
-      method: 'toss-up'
+      winner: selfWins ? self : other,
+      loser: selfWins ? other : self,
+      winnerRating: selfWins ? entry.rating : 1000 - entry.rating,
+      loserRating: selfWins ? 1000 - entry.rating : entry.rating,
+      method: 'matchup',
     };
   }
 
-  const aWins = ratingA >= ratingB;
+  // No head-to-head data (shouldn't happen with selectQuizPair): fall back to
+  // overall ranking score, which is NOT a head-to-head result.
+  const scoreA = pokemonA.score || 0;
+  const scoreB = pokemonB.score || 0;
+  if (Math.abs(scoreA - scoreB) < 1) {
+    return { winner: null, loser: null, winnerRating: scoreA, loserRating: scoreB, method: 'toss-up' };
+  }
+  const aWins = scoreA > scoreB;
   return {
     winner: aWins ? pokemonA : pokemonB,
     loser: aWins ? pokemonB : pokemonA,
-    winnerRating: Math.max(ratingA, ratingB),
-    loserRating: Math.min(ratingA, ratingB),
-    method: 'rating'
+    winnerRating: Math.max(scoreA, scoreB),
+    loserRating: Math.min(scoreA, scoreB),
+    method: 'score',
   };
 }
 
 /**
- * Describe how dominant a matchup is.
+ * Describe how dominant a matchup is, from the winner's battle rating.
  */
 function describeDominance(winnerRating) {
-  if (winnerRating >= 900) return { text: 'Dominant victory', level: 'dominant' };
-  if (winnerRating >= 700) return { text: 'Solid win', level: 'solid' };
+  if (winnerRating >= 800) return { text: 'Dominant victory', level: 'dominant' };
+  if (winnerRating >= 650) return { text: 'Solid win', level: 'solid' };
   if (winnerRating >= 550) return { text: 'Close matchup', level: 'close' };
-  return { text: 'Very close battle', level: 'close' };
+  return { text: 'Very close battle — shields and timing decide it', level: 'close' };
+}
+
+function effectivenessLabel(mult) {
+  if (mult >= 2.5) return { text: 'double super effective', cls: 'advantage' };
+  if (mult > 1) return { text: 'super effective', cls: 'advantage' };
+  if (mult <= 0.25) return { text: 'barely scratches', cls: 'disadvantage' };
+  if (mult <= 0.4) return { text: 'double resisted', cls: 'disadvantage' };
+  if (mult < 1) return { text: 'resisted', cls: 'disadvantage' };
+  return { text: 'neutral', cls: 'neutral' };
+}
+
+/**
+ * Resolve a PvPoke ranking entry's recommended moveset into move objects.
+ */
+function resolveMoveset(entry, movesMap) {
+  return (entry.moveset || []).map((moveId, i) => {
+    const move = movesMap?.get(moveId);
+    return {
+      id: moveId,
+      name: move?.name || prettifyMoveId(moveId),
+      type: move?.type || null,
+      kind: i === 0 ? 'fast' : 'charged',
+    };
+  });
+}
+
+function prettifyMoveId(id) {
+  return id.toLowerCase().split('_').map(capitalize).join(' ');
+}
+
+function typesOf(entry, pokemonMap) {
+  const data = pokemonMap?.get(entry.speciesId);
+  return (data?.types || []).filter(t => t && t !== 'none');
 }
 
 /**
  * Generate explanation for a quiz result.
+ * Returns plain data; ui.js handles markup.
  */
-export function generateExplanation(result, pokemonA, pokemonB, pokemonMap) {
-  const explanation = {
-    types: '',
-    rating: null,
-    moveset: '',
-    dominance: null,
-  };
+export function generateExplanation(result, pokemonA, pokemonB, pokemonMap, movesMap) {
+  const first = result.winner || pokemonA;
+  const second = result.loser || pokemonB;
 
-  // Get type data from gamemaster
-  const dataA = pokemonMap?.get(pokemonA.speciesId);
-  const dataB = pokemonMap?.get(pokemonB.speciesId);
+  const sides = [first, second].map(entry => ({
+    speciesId: entry.speciesId,
+    name: entry.speciesName || entry.speciesId,
+    types: typesOf(entry, pokemonMap),
+    moves: resolveMoveset(entry, movesMap),
+    isWinner: result.winner?.speciesId === entry.speciesId,
+  }));
 
-  // Type analysis
-  if (dataA?.types && dataB?.types) {
-    const typesA = dataA.types.filter(Boolean);
-    const typesB = dataB.types.filter(Boolean);
-    const analysis = analyzeTypeMatchup(typesA, typesB);
-
-    const lines = [];
-
-    for (const adv of analysis.advantages) {
-      const attacker = adv.side === 'A' ? pokemonA : pokemonB;
-      const defender = adv.side === 'A' ? pokemonB : pokemonA;
-      const attackerName = attacker.speciesName || attacker.speciesId;
-      const defenderName = defender.speciesName || defender.speciesId;
-      const mult = adv.multiplier >= 2.5 ? 'double super effective' : 'super effective';
-      lines.push(`<span class="advantage">${capitalize(adv.type)}</span> is ${mult} against ${defenderName}`);
+  // How each side's actual moves land on the other side's typing
+  const typeLines = [];
+  for (const [atk, def] of [[sides[0], sides[1]], [sides[1], sides[0]]]) {
+    if (!def.types.length) continue;
+    for (const move of atk.moves) {
+      if (!move.type) continue;
+      const mult = getTypeMatchup(move.type, def.types);
+      if (mult === 1) continue;
+      typeLines.push({ attacker: atk.name, move: move.name, moveType: move.type, defender: def.name, ...effectivenessLabel(mult) });
     }
-
-    for (const dis of analysis.disadvantages) {
-      const attacker = dis.side === 'A' ? pokemonA : pokemonB;
-      const mult = dis.multiplier <= 0.4 ? 'double resisted' : 'resisted';
-      lines.push(`<span class="disadvantage">${capitalize(dis.type)}</span> is ${mult} by the opponent`);
-    }
-
-    if (lines.length === 0) {
-      lines.push('<span class="neutral">No significant type advantages</span>');
-    }
-
-    explanation.types = lines.join('<br>');
   }
 
-  // Rating data
-  if (result.method !== 'toss-up' && result.winnerRating) {
+  const explanation = {
+    method: result.method,
+    sides,
+    typeLines,
+    rating: null,
+    dominance: null,
+    notes: first.editorNotes || null,
+  };
+
+  if (result.method !== 'toss-up') {
     explanation.rating = {
-      winner: result.winner.speciesName || result.winner.speciesId,
-      loser: result.loser.speciesName || result.loser.speciesId,
+      winner: sides[0].name,
+      loser: sides[1].name,
       winnerRating: Math.round(result.winnerRating),
       loserRating: Math.round(result.loserRating),
     };
-  }
-
-  // Winner's moveset
-  if (result.winner?.moveset) {
-    const moves = result.winner.moveset;
-    const moveParts = [];
-    if (moves.length > 0) moveParts.push(`Fast: <span class="move-tag">${moves[0]}</span>`);
-    if (moves.length > 1) moveParts.push(`Charged: <span class="move-tag">${moves[1]}</span>`);
-    if (moves.length > 2) moveParts.push(`<span class="move-tag">${moves[2]}</span>`);
-    explanation.moveset = moveParts.join(' ');
-  }
-
-  // Dominance level
-  if (result.method !== 'toss-up') {
-    explanation.dominance = describeDominance(result.winnerRating);
+    if (result.method === 'matchup') {
+      explanation.dominance = describeDominance(result.winnerRating);
+    }
   }
 
   return explanation;
@@ -253,12 +208,13 @@ function capitalize(str) {
  */
 export class QuizSession {
   constructor(rankings, leagueName) {
-    this.rankings = rankings;
+    this.pool = rankings.slice(0, POOL_SIZE);
+    this.index = buildMatchupIndex(this.pool);
     this.leagueName = leagueName;
     this.rounds = [];
     this.usedPokemon = new Set();
     this.currentRound = 0;
-    this.totalRounds = Math.min(ROUNDS_PER_SESSION, Math.floor(rankings.slice(0, POOL_SIZE).length / 2));
+    this.totalRounds = Math.min(ROUNDS_PER_SESSION, this.index.size);
     this.currentPair = null;
     this.currentResult = null;
   }
@@ -274,15 +230,13 @@ export class QuizSession {
   nextRound() {
     if (this.isComplete) return null;
 
-    this.currentRound++;
-    const pair = selectQuizPair(this.rankings, this.usedPokemon);
-    this.currentPair = pair;
+    const pair = selectQuizPair(this.pool, this.index, this.usedPokemon);
+    if (!pair) return null;
 
-    // Mark as used
+    this.currentRound++;
+    this.currentPair = pair;
     this.usedPokemon.add(pair.pokemonA.speciesId);
     this.usedPokemon.add(pair.pokemonB.speciesId);
-
-    // Pre-calculate the winner
     this.currentResult = determineWinner(pair.pokemonA, pair.pokemonB);
 
     return pair;
@@ -290,14 +244,8 @@ export class QuizSession {
 
   submitAnswer(selectedSpeciesId) {
     const result = this.currentResult;
-    let correct;
-
-    if (result.method === 'toss-up') {
-      // Either answer is acceptable for toss-ups
-      correct = true;
-    } else {
-      correct = result.winner.speciesId === selectedSpeciesId;
-    }
+    // Either answer is acceptable for a draw
+    const correct = result.method === 'toss-up' || result.winner.speciesId === selectedSpeciesId;
 
     const roundData = {
       round: this.currentRound,

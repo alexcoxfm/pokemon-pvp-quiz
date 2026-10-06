@@ -208,6 +208,13 @@ button {
   font-size: 0.9rem;
 }
 
+.meta-date {
+  text-align: center;
+  margin-top: 1rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
 /* === Screen 2: Quiz === */
 .quiz-header {
   display: flex;
@@ -514,6 +521,30 @@ button {
   color: var(--text-secondary);
 }
 
+.explain-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.moveset-row + .moveset-row {
+  margin-top: 0.5rem;
+}
+
+.moveset-name {
+  font-weight: 600;
+}
+
+.move-tag .type-badge {
+  margin-right: 0.3rem;
+  font-size: 0.55rem;
+  vertical-align: middle;
+}
+
+.explain-content .type-badge {
+  vertical-align: middle;
+}
+
 .move-tag {
   display: inline-block;
   font-size: 0.8rem;
@@ -531,10 +562,26 @@ button {
   margin-top: 0.25rem;
 }
 
-.rating-bar-fill {
+.rating-name {
+  min-width: 80px;
+  max-width: 40%;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rating-track {
+  flex: 1;
   height: 6px;
   border-radius: 3px;
-  flex: 1;
+  background: var(--border-color);
+  overflow: hidden;
+}
+
+.rating-bar-fill {
+  height: 100%;
+  border-radius: 3px;
 }
 
 .rating-bar-fill.winner-bar {
