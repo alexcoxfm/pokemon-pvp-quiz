@@ -44,23 +44,39 @@ export function renderCups(formats) {
   for (const cup of cups) {
     const btn = document.createElement('button');
     btn.className = 'league-btn';
-    btn.dataset.league = cup.cp || '1500';
-    btn.dataset.cup = cup.cup || 'all';
+    btn.dataset.league = cup.cp;
+    btn.dataset.cup = cup.cup;
     btn.dataset.leagueName = cup.title;
     btn.innerHTML = `
       <span class="league-icon cup"></span>
-      <span class="league-name">${cup.title}</span>
-      <span class="league-cp">CP ${cup.cp || '1500'}</span>
+      <span class="league-name">${esc(cup.title)}</span>
+      <span class="league-cp">${cup.cp >= 10000 ? 'No Limit' : `CP ${esc(cup.cp)}`}</span>
     `;
     container.appendChild(btn);
   }
 }
 
-export function showLastScore(score, total) {
+export function showLastScore(score, total, league) {
   const container = document.getElementById('session-score');
   const span = document.getElementById('last-score');
   container.classList.remove('hidden');
-  span.textContent = `${score}/${total}`;
+  span.textContent = league ? `${score}/${total} (${league})` : `${score}/${total}`;
+}
+
+export function hideCup(cup, cp) {
+  const btn = document.querySelector(`#cups-buttons .league-btn[data-cup="${CSS.escape(cup)}"][data-league="${CSS.escape(String(cp))}"]`);
+  btn?.remove();
+  if (!document.querySelector('#cups-buttons .league-btn')) {
+    document.getElementById('cups-section').classList.add('hidden');
+  }
+}
+
+export function showMetaDate(timestamp) {
+  const el = document.getElementById('meta-date');
+  if (!el || !timestamp) return;
+  const date = new Date(timestamp.replace(' ', 'T'));
+  if (isNaN(date)) return;
+  el.textContent = `Meta data from PvPoke · updated ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 
 // === Quiz Screen ===
@@ -83,12 +99,13 @@ export function renderPokemonCard(side, pokemon) {
   imgEl.alt = name;
 
   // Image loading
-  imgEl.src = '';
   imgEl.style.opacity = '0';
+  imgEl.onload = () => { imgEl.style.opacity = '1'; };
+  imgEl.onerror = () => { imgEl.style.opacity = '0'; };
   if (imageUrl) {
     imgEl.src = imageUrl;
-    imgEl.onload = () => { imgEl.style.opacity = '1'; };
-    imgEl.onerror = () => { imgEl.style.opacity = '0'; };
+  } else {
+    imgEl.removeAttribute('src');
   }
 
   // Type badges
@@ -159,9 +176,7 @@ function renderResultPokemon(side, pokemon, result) {
 
   nameEl.textContent = name;
   imgEl.alt = name;
-  if (imageUrl) {
-    imgEl.src = imageUrl;
-  }
+  imgEl.src = imageUrl || '';
 
   // Type badges
   typesEl.innerHTML = '';
@@ -187,68 +202,77 @@ function renderResultPokemon(side, pokemon, result) {
   }
 }
 
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function typeBadge(type) {
+  return `<span class="type-badge type-${esc(type)}">${esc(type)}</span>`;
+}
+
+function section(label, content) {
+  return `<div class="explain-label">${label}</div><div class="explain-content">${content}</div>`;
+}
+
 export function renderExplanation(explanation) {
-  // Types
+  // Type matchup — based on the moves each Pokemon actually uses
   const typesEl = document.getElementById('explain-types');
-  if (explanation.types) {
-    typesEl.innerHTML = `
-      <div class="explain-label">Type Matchup</div>
-      <div class="explain-content">${explanation.types}</div>
-    `;
-  } else {
-    typesEl.innerHTML = '';
-  }
+  const typeContent = explanation.typeLines.length
+    ? explanation.typeLines.map(l =>
+        `${esc(l.attacker)}'s ${typeBadge(l.moveType)} <strong>${esc(l.move)}</strong> is <span class="${l.cls}">${esc(l.text)}</span> vs ${esc(l.defender)}`
+      ).join('<br>')
+    : '<span class="neutral">No type advantages either way — this one comes down to stats, move pressure and shields.</span>';
+  typesEl.innerHTML = section('Type Matchup (recommended moves)', typeContent);
 
   // Rating
   const ratingEl = document.getElementById('explain-rating');
   if (explanation.rating) {
     const { winner, loser, winnerRating, loserRating } = explanation.rating;
-    const maxRating = Math.max(winnerRating, loserRating, 1);
-    const winnerPct = (winnerRating / 1000 * 100).toFixed(0);
-    const loserPct = (loserRating / 1000 * 100).toFixed(0);
-
-    ratingEl.innerHTML = `
-      <div class="explain-label">Battle Rating</div>
-      <div class="explain-content">
-        <div class="rating-bar">
-          <span style="min-width:80px;font-size:0.8rem">${winner}</span>
-          <div class="rating-bar-fill winner-bar" style="width:${winnerPct}%"></div>
-          <span class="rating-value">${winnerRating}</span>
-        </div>
-        <div class="rating-bar">
-          <span style="min-width:80px;font-size:0.8rem">${loser}</span>
-          <div class="rating-bar-fill loser-bar" style="width:${loserPct}%"></div>
-          <span class="rating-value">${loserRating}</span>
-        </div>
-      </div>
-    `;
+    const isBattle = explanation.method === 'matchup';
+    const scale = isBattle ? 1000 : 100;
+    const bar = (name, value, cls) => `
+      <div class="rating-bar">
+        <span class="rating-name">${esc(name)}</span>
+        <div class="rating-track"><div class="rating-bar-fill ${cls}" style="width:${Math.min(100, value / scale * 100).toFixed(0)}%"></div></div>
+        <span class="rating-value">${value}</span>
+      </div>`;
+    const label = isBattle
+      ? 'PvPoke Battle Rating <span class="explain-hint">(1v1, 500 = even)</span>'
+      : 'Overall Ranking Score <span class="explain-hint">(no head-to-head data)</span>';
+    ratingEl.innerHTML = section(label, bar(winner, winnerRating, 'winner-bar') + bar(loser, loserRating, 'loser-bar'));
   } else {
-    ratingEl.innerHTML = '';
+    ratingEl.innerHTML = section('PvPoke Battle Rating', '<span class="neutral">Dead even — 500 to 500</span>');
   }
 
-  // Moveset
+  // Movesets for both sides
   const movesetEl = document.getElementById('explain-moveset');
-  if (explanation.moveset) {
-    const winnerName = explanation.rating?.winner || 'Winner';
-    movesetEl.innerHTML = `
-      <div class="explain-label">${winnerName}'s Recommended Moveset</div>
-      <div class="explain-content">${explanation.moveset}</div>
-    `;
-  } else {
-    movesetEl.innerHTML = '';
-  }
+  const movesetRows = explanation.sides.filter(sd => sd.moves.length).map(sd => {
+    const fast = sd.moves.filter(m => m.kind === 'fast');
+    const charged = sd.moves.filter(m => m.kind === 'charged');
+    const tag = m => `<span class="move-tag">${m.type ? typeBadge(m.type) : ''}${esc(m.name)}</span>`;
+    return `<div class="moveset-row">
+      <div class="moveset-name">${esc(sd.name)}${sd.isWinner ? ' <span class="advantage">(winner)</span>' : ''}</div>
+      <div class="moveset-moves">Fast: ${fast.map(tag).join(' ')}<br>Charged: ${charged.map(tag).join(' ')}</div>
+    </div>`;
+  });
+  movesetEl.innerHTML = movesetRows.length ? section('Recommended Movesets', movesetRows.join('')) : '';
 
   // Dominance
   const domEl = document.getElementById('explain-dominance');
   if (explanation.dominance) {
     const levelClass = explanation.dominance.level === 'dominant' ? 'advantage' :
                        explanation.dominance.level === 'close' ? 'neutral' : '';
-    domEl.innerHTML = `
-      <div class="explain-label">Matchup Assessment</div>
-      <div class="explain-content"><span class="${levelClass}">${explanation.dominance.text}</span></div>
-    `;
+    domEl.innerHTML = section('Matchup Assessment', `<span class="${levelClass}">${esc(explanation.dominance.text)}</span>`);
   } else {
     domEl.innerHTML = '';
+  }
+
+  // PvPoke editor notes on the winner's role in the meta
+  const notesEl = document.getElementById('explain-notes');
+  if (explanation.notes) {
+    notesEl.innerHTML = section(`Meta Notes: ${esc(explanation.sides[0].name)}`, esc(explanation.notes));
+  } else {
+    notesEl.innerHTML = '';
   }
 }
 
@@ -276,8 +300,8 @@ export function renderSummary(session) {
         ${round.correct ? '\u2713' : '\u2717'}
       </div>
       <div class="round-result-text">
-        ${nameA} vs ${nameB}
-        <br><span class="round-result-winner">${round.result.method === 'toss-up' ? 'Too close to call' : `Winner: ${winnerName}`}</span>
+        ${esc(nameA)} vs ${esc(nameB)}
+        <br><span class="round-result-winner">${round.result.method === 'toss-up' ? 'Too close to call' : `Winner: ${esc(winnerName)}`}</span>
       </div>
     `;
 

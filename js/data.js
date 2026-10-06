@@ -66,7 +66,7 @@ async function fetchWithCache(url, key) {
 
   // Serve stale immediately, refresh in background
   if (cached && isStale) {
-    fetchAndUpdate(url, key);
+    fetchAndUpdate(url, key).catch(() => { /* offline — keep using cache */ });
     return cached.data;
   }
 
@@ -75,9 +75,12 @@ async function fetchWithCache(url, key) {
 }
 
 async function fetchAndUpdate(url, key) {
-  const response = await fetch(url);
+  // Bypass the HTTP cache so a 24h refresh actually gets PvPoke's latest data
+  const response = await fetch(url, { cache: 'no-cache' });
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status}`);
+    const err = new Error(`Failed to fetch ${url}: ${response.status}`);
+    err.status = response.status;
+    throw err;
   }
   const data = await response.json();
   await setCache(key, data);
@@ -91,22 +94,48 @@ export async function getGamemaster() {
 export async function getRankings(league, cup = 'all') {
   const key = `rankings-${cup}-${league}`;
 
-  if (cup !== 'all') {
-    try {
-      return await fetchWithCache(rankingsUrl(league, cup), key);
-    } catch {
-      // Cup-specific rankings don't exist, fall back to general
-      return fetchWithCache(rankingsUrl(league, 'all'), `rankings-all-${league}`);
-    }
-  }
+  // Cup rankings that PvPoke hasn't published 404 — let that error surface
+  // rather than silently quizzing on the open league under the cup's name.
+  return fetchWithCache(rankingsUrl(league, cup), key);
+}
 
-  return fetchWithCache(rankingsUrl(league, 'all'), key);
+/**
+ * Check whether PvPoke has published rankings for a cup.
+ * Resolves true/false, or null if we couldn't tell (offline).
+ */
+export async function rankingsExist(league, cup) {
+  if (await getCached(`rankings-${cup}-${league}`)) return true;
+  try {
+    const res = await fetch(rankingsUrl(league, cup), { method: 'HEAD' });
+    return res.ok;
+  } catch {
+    return null;
+  }
 }
 
 export function getFormats(gamemaster) {
-  // Extract active cup/format definitions from gamemaster
+  // Active cups/formats PvPoke currently lists. Entries look like
+  // { title, cup, cp, showFormat, hideRankings }.
   if (!gamemaster || !gamemaster.formats) return [];
-  return gamemaster.formats.filter(f => f.league && f.title);
+  const seen = new Set();
+  return gamemaster.formats.filter(f => {
+    if (!f.title || !f.cup || !f.cp) return false;
+    if (f.cup === 'all' || f.cup === 'custom') return false; // open leagues have their own buttons
+    if (f.showFormat === false || f.hideRankings) return false;
+    const key = `${f.cup}-${f.cp}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function getMovesData(gamemaster) {
+  // moveId -> { name, type, ... }
+  const map = new Map();
+  for (const move of gamemaster?.moves || []) {
+    map.set(move.moveId, move);
+  }
+  return map;
 }
 
 export function getPokemonData(gamemaster) {
