@@ -4,8 +4,8 @@
   "description": "Practice Pokemon GO PVP Battle League matchup knowledge",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0f0f23",
-  "theme_color": "#0f0f23",
+  "background_color": "#3ba8f5",
+  "theme_color": "#3ba8f5",
   "orientation": "portrait",
   "icons": [
     {

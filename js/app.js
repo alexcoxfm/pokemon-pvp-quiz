@@ -5,7 +5,7 @@ import { QuizSession, generateExplanation } from './quiz.js';
 import {
   showScreen, renderCups, showLastScore, renderQuizHeader,
   renderPokemonCard, showQuizLoading, renderResult,
-  renderExplanation, renderSummary, setPokemonMap, hideCup, showMetaDate
+  renderExplanation, renderSummary, setPokemonMap, hideCup, showMetaDate, playRoundIntro
 } from './ui.js';
 
 let gamemaster = null;
@@ -160,6 +160,7 @@ function showNextRound() {
   document.getElementById('pokemon-b').disabled = false;
 
   showScreen('screen-quiz');
+  playRoundIntro();
 }
 
 function submitAnswer(selectedSpeciesId) {
@@ -182,9 +183,9 @@ function submitAnswer(selectedSpeciesId) {
   // Update button text
   const nextBtn = document.getElementById('btn-next');
   if (currentSession.isComplete) {
-    nextBtn.textContent = 'See Results';
+    nextBtn.textContent = 'See results';
   } else {
-    nextBtn.textContent = 'Next Round';
+    nextBtn.textContent = 'Next round';
   }
 
   showScreen('screen-result');

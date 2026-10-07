@@ -4,10 +4,11 @@
 // pick up the new code (the app shell is network-first, but this also clears
 // out old caches).
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const APP_CACHE = `app-shell-${CACHE_VERSION}`;
 const DATA_CACHE = `pvpoke-data-${CACHE_VERSION}`;
 const IMAGE_CACHE = `pokemon-images-${CACHE_VERSION}`;
+const FONT_CACHE = `fonts-${CACHE_VERSION}`;
 const IMAGE_CACHE_LIMIT = 500;
 
 // App shell files to precache
@@ -41,7 +42,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys
-          .filter((key) => key !== APP_CACHE && key !== DATA_CACHE && key !== IMAGE_CACHE)
+          .filter((key) => ![APP_CACHE, DATA_CACHE, IMAGE_CACHE, FONT_CACHE].includes(key))
           .map((key) => caches.delete(key))
       );
     })
@@ -75,6 +76,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Tier 4: Google Fonts — cache-first so the app keeps its look offline
+  if (isFont(url)) {
+    event.respondWith(cacheFirstFont(event.request));
+    return;
+  }
+
   // Default: let the browser handle it
 });
 
@@ -98,7 +105,27 @@ function isPokemonImage(url) {
          url.pathname.includes('/PokeAPI/');
 }
 
+function isFont(url) {
+  return url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
+}
+
 // === Caching strategies ===
+
+async function cacheFirstFont(request) {
+  const cache = await caches.open(FONT_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    // Stylesheet requests are no-cors (opaque), which is fine to cache for fonts
+    if (response.ok || response.type === 'opaque') {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return new Response('', { status: 503 });
+  }
+}
 
 async function cacheFirstWithLRU(request, cacheName) {
   const cache = await caches.open(cacheName);
