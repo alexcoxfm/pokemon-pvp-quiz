@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#0f0f23">
+  <meta name="theme-color" content="#3ba8f5">
   <meta name="description" content="Practice Pokemon GO PVP Battle League matchup knowledge">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
   <link rel="apple-touch-icon" href="img/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;700;800&display=swap">
   <link rel="stylesheet" href="css/styles.css">
   <title>PVP Quiz - Pokemon GO</title>
 </head>
@@ -24,12 +27,16 @@
     <section id="screen-home" class="screen active">
       <div class="container">
         <header class="app-header">
+          <span class="header-sparkle s1" aria-hidden="true"></span>
+          <span class="header-sparkle s2" aria-hidden="true"></span>
+          <span class="header-sparkle s3" aria-hidden="true"></span>
+          <span class="header-sparkle s4" aria-hidden="true"></span>
           <h1 class="app-title">PVP Quiz</h1>
           <p class="app-subtitle">Pokemon GO Battle League</p>
         </header>
 
         <div class="league-section">
-          <h2 class="section-title">Select a League</h2>
+          <h2 class="section-title">Pick a league</h2>
           <div class="league-buttons">
             <button class="league-btn" data-league="1500" data-league-name="Great League">
               <span class="league-icon great"></span>
@@ -50,7 +57,7 @@
         </div>
 
         <div id="cups-section" class="cups-section hidden">
-          <h2 class="section-title">Special Cups</h2>
+          <h2 class="section-title">Special cups</h2>
           <div id="cups-buttons" class="league-buttons"></div>
         </div>
 
@@ -73,7 +80,7 @@
           </div>
         </div>
 
-        <p class="quiz-prompt">Tap the winner!</p>
+        <p class="quiz-prompt">Who wins?</p>
 
         <div class="pokemon-matchup">
           <button class="pokemon-card" id="pokemon-a" aria-label="Select Pokemon A">
@@ -85,7 +92,7 @@
             <div id="pokemon-a-types" class="pokemon-types"></div>
           </button>
 
-          <div class="vs-badge">VS</div>
+          <div class="vs-badge" aria-hidden="true">VS</div>
 
           <button class="pokemon-card" id="pokemon-b" aria-label="Select Pokemon B">
             <div class="pokemon-img-wrapper">
@@ -108,6 +115,7 @@
     <section id="screen-result" class="screen">
       <div class="container">
         <div id="result-banner" class="result-banner">
+          <div class="burst" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <h2 id="result-text"></h2>
         </div>
 
@@ -120,7 +128,7 @@
             <div id="result-a-types" class="pokemon-types"></div>
           </div>
 
-          <div class="result-vs">VS</div>
+          <div class="result-vs" aria-hidden="true">VS</div>
 
           <div class="result-pokemon" id="result-pokemon-b">
             <div class="result-img-wrapper">
@@ -139,7 +147,7 @@
           <div id="explain-notes" class="explain-section"></div>
         </div>
 
-        <button id="btn-next" class="btn-primary">Next Round</button>
+        <button id="btn-next" class="btn-primary">Next round</button>
       </div>
     </section>
 
@@ -147,15 +155,15 @@
     <section id="screen-summary" class="screen">
       <div class="container">
         <header class="summary-header">
-          <h2>Quiz Complete!</h2>
+          <h2>Quiz complete!</h2>
           <div id="final-score" class="final-score"></div>
         </header>
 
         <div id="round-results" class="round-results"></div>
 
         <div class="summary-actions">
-          <button id="btn-play-again" class="btn-primary">Play Again</button>
-          <button id="btn-change-league" class="btn-secondary">Change League</button>
+          <button id="btn-play-again" class="btn-primary">Play again</button>
+          <button id="btn-change-league" class="btn-secondary">Change league</button>
         </div>
       </div>
     </section>

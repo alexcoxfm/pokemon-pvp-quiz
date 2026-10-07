@@ -76,7 +76,7 @@ export function showMetaDate(timestamp) {
   if (!el || !timestamp) return;
   const date = new Date(timestamp.replace(' ', 'T'));
   if (isNaN(date)) return;
-  el.textContent = `Meta data from PvPoke · updated ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  el.textContent = `PvPoke data updated ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 
 // === Quiz Screen ===
@@ -94,13 +94,16 @@ export function renderPokemonCard(side, pokemon) {
 
   const name = getDisplayName(pokemon.speciesId, pokemonMap);
   const imageUrl = getImageUrl(pokemon.speciesId, pokemonMap);
+  const wrapper = imgEl.parentElement;
 
   nameEl.textContent = name;
   imgEl.alt = name;
+  setStage(wrapper, pokemon);
 
   // Image loading
+  wrapper.classList.remove('loaded');
   imgEl.style.opacity = '0';
-  imgEl.onload = () => { imgEl.style.opacity = '1'; };
+  imgEl.onload = () => { imgEl.style.opacity = '1'; wrapper.classList.add('loaded'); };
   imgEl.onerror = () => { imgEl.style.opacity = '0'; };
   if (imageUrl) {
     imgEl.src = imageUrl;
@@ -120,6 +123,24 @@ export function renderPokemonCard(side, pokemon) {
       typesEl.appendChild(badge);
     }
   }
+}
+
+// Tint the spotlight behind a Pokemon with its primary type color
+function setStage(wrapper, pokemon) {
+  const type = pokemonMap?.get(pokemon.speciesId)?.types?.find(t => t && t !== 'none');
+  if (type) {
+    wrapper.style.setProperty('--stage', `var(--type-${type.toLowerCase()})`);
+  } else {
+    wrapper.style.removeProperty('--stage');
+  }
+}
+
+// Replay the slide-in / VS pop for a new round
+export function playRoundIntro() {
+  const matchup = document.querySelector('.pokemon-matchup');
+  matchup.classList.remove('enter');
+  void matchup.offsetWidth;
+  matchup.classList.add('enter');
 }
 
 export function showQuizLoading(show) {
@@ -177,6 +198,7 @@ function renderResultPokemon(side, pokemon, result) {
   nameEl.textContent = name;
   imgEl.alt = name;
   imgEl.src = imageUrl || '';
+  setStage(imgEl.parentElement, pokemon);
 
   // Type badges
   typesEl.innerHTML = '';
@@ -222,7 +244,7 @@ export function renderExplanation(explanation) {
         `${esc(l.attacker)}'s ${typeBadge(l.moveType)} <strong>${esc(l.move)}</strong> is <span class="${l.cls}">${esc(l.text)}</span> vs ${esc(l.defender)}`
       ).join('<br>')
     : '<span class="neutral">No type advantages either way — this one comes down to stats, move pressure and shields.</span>';
-  typesEl.innerHTML = section('Type Matchup (recommended moves)', typeContent);
+  typesEl.innerHTML = section('Type matchup <span class="explain-hint">(recommended moves)</span>', typeContent);
 
   // Rating
   const ratingEl = document.getElementById('explain-rating');
@@ -237,11 +259,11 @@ export function renderExplanation(explanation) {
         <span class="rating-value">${value}</span>
       </div>`;
     const label = isBattle
-      ? 'PvPoke Battle Rating <span class="explain-hint">(1v1, 500 = even)</span>'
-      : 'Overall Ranking Score <span class="explain-hint">(no head-to-head data)</span>';
+      ? 'PvPoke battle rating <span class="explain-hint">(1v1, 500 = even)</span>'
+      : 'Overall ranking score <span class="explain-hint">(no head-to-head data)</span>';
     ratingEl.innerHTML = section(label, bar(winner, winnerRating, 'winner-bar') + bar(loser, loserRating, 'loser-bar'));
   } else {
-    ratingEl.innerHTML = section('PvPoke Battle Rating', '<span class="neutral">Dead even — 500 to 500</span>');
+    ratingEl.innerHTML = section('PvPoke battle rating', '<span class="neutral">Dead even — 500 to 500</span>');
   }
 
   // Movesets for both sides
@@ -255,14 +277,14 @@ export function renderExplanation(explanation) {
       <div class="moveset-moves">Fast: ${fast.map(tag).join(' ')}<br>Charged: ${charged.map(tag).join(' ')}</div>
     </div>`;
   });
-  movesetEl.innerHTML = movesetRows.length ? section('Recommended Movesets', movesetRows.join('')) : '';
+  movesetEl.innerHTML = movesetRows.length ? section('Recommended movesets', movesetRows.join('')) : '';
 
   // Dominance
   const domEl = document.getElementById('explain-dominance');
   if (explanation.dominance) {
     const levelClass = explanation.dominance.level === 'dominant' ? 'advantage' :
                        explanation.dominance.level === 'close' ? 'neutral' : '';
-    domEl.innerHTML = section('Matchup Assessment', `<span class="${levelClass}">${esc(explanation.dominance.text)}</span>`);
+    domEl.innerHTML = section('How lopsided?', `<span class="${levelClass}">${esc(explanation.dominance.text)}</span>`);
   } else {
     domEl.innerHTML = '';
   }
@@ -270,7 +292,7 @@ export function renderExplanation(explanation) {
   // PvPoke editor notes on the winner's role in the meta
   const notesEl = document.getElementById('explain-notes');
   if (explanation.notes) {
-    notesEl.innerHTML = section(`Meta Notes: ${esc(explanation.sides[0].name)}`, esc(explanation.notes));
+    notesEl.innerHTML = section(`Why ${esc(explanation.sides[0].name)} sees play`, esc(explanation.notes));
   } else {
     notesEl.innerHTML = '';
   }

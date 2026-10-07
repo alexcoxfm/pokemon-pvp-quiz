@@ -15,3 +15,9 @@ Pokemon GO Battle League "who wins?" quiz. Vanilla HTML/CSS/JS ES modules, no bu
 ## Checks before committing
 - Serve with `python3 -m http.server` and play a round in Great, Master and one cup.
 - Bump `CACHE_VERSION` in `sw.js` when adding or renaming app-shell files (and add them to `APP_SHELL`).
+
+## Design
+- "Sunny route day": sky-blue backdrop, white sticker cards with 3px ink outlines and hard drop shadows, sunshine-yellow actions and VS burst. Tokens live at the top of `css/styles.css`.
+- Fonts: Lilita One (display) + Nunito (body) from Google Fonts, cached by the service worker.
+- Each Pokemon's image sits on a spotlight tinted by its primary type (`--stage`, set in `ui.js`).
+- Original decorations only (sparkles, starburst). Don't draw Nintendo designs such as Poké Balls or game UI icons; Pokemon art comes from PokeAPI.
