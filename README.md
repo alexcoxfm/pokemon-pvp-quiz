@@ -8,6 +8,7 @@ A mobile-first Progressive Web App to practice Pokemon GO PVP Battle League matc
 - **Special cups**: Dynamically loaded from PVPoke's gamemaster data when active
 - **Real matchups only**: Every pair has a published PvPoke head-to-head result
 - **Detailed explanations**: How each side's recommended moves hit the other's typing, battle ratings, both movesets, and PvPoke's meta notes on the winner
+- **Team ideas**: Balanced 3-Pokemon teams for each league, built live from PvPoke rankings and head-to-head results, with roles, movesets, what each member beats and what to watch out for
 - **Works offline**: Full PWA with service worker caching
 - **Mobile-first**: Designed for touch with dark theme
 

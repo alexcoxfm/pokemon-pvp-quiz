@@ -10,7 +10,7 @@ Pokemon GO Battle League "who wins?" quiz. Vanilla HTML/CSS/JS ES modules, no bu
 - Artwork: PokeAPI official artwork. Forms map through generated `js/form-map.js` — regenerate with `node tools/build-form-map.mjs`, never hand-edit.
 
 ## Layout
-- `js/data.js` fetch + IndexedDB cache (24h) · `js/quiz.js` pairing, winner, explanation data · `js/ui.js` rendering · `js/app.js` flow · `sw.js` offline caching.
+- `js/data.js` fetch + IndexedDB cache (24h) · `js/quiz.js` pairing, winner, explanation data · `js/teams.js` team-ideas scoring (PvPoke ratings where published, type-based estimates otherwise; GBL bans duplicate dex numbers) · `js/ui.js` rendering · `js/app.js` flow · `sw.js` offline caching.
 
 ## Checks before committing
 - Serve with `python3 -m http.server` and play a round in Great, Master and one cup.

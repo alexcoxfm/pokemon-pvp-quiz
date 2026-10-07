@@ -316,6 +316,205 @@ button {
   font-size: 0.8rem;
 }
 
+/* === Home tabs === */
+.mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 1.5rem;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.mode-tab {
+  min-height: 48px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: #fff;
+  transition: background var(--transition), color var(--transition);
+}
+
+.mode-tab[aria-selected="true"] {
+  background: var(--sun);
+  color: var(--ink);
+}
+
+/* === Team ideas === */
+.chip-row {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  margin: 0 -1rem;
+  padding: 0.25rem 1rem 0.6rem;
+  scrollbar-width: none;
+}
+
+.chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  min-height: 44px;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  background: var(--paper);
+  border: var(--outline);
+  box-shadow: 0 3px 0 var(--ink);
+  font-weight: 800;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--sun);
+}
+
+.chip:active {
+  transform: translateY(3px);
+  box-shadow: none;
+}
+
+.teams-intro {
+  margin: 0.5rem 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-btn);
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.teams-message {
+  text-align: center;
+  font-weight: 800;
+  padding: 1.5rem 1rem;
+}
+
+.team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.team-card {
+  background: var(--paper);
+  border: var(--outline);
+  box-shadow: var(--lift);
+  border-radius: var(--radius-panel);
+  padding: 0.9rem 1rem 1rem;
+}
+
+.team-cover {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: var(--mist);
+  border: 2px solid var(--line);
+  margin-bottom: 0.75rem;
+}
+
+.team-cover strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.05rem;
+  color: var(--grass-text);
+}
+
+.team-members {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.team-member {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.team-member .team-thumb {
+  flex-shrink: 0;
+  width: 76px;
+  margin-bottom: 0;
+  border-radius: 14px;
+  border: 2px solid var(--ink);
+}
+
+.team-thumb .pokemon-img {
+  padding: 8%;
+}
+
+.team-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.team-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.team-name {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.role-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+}
+
+.role-lead { background: var(--sun); }
+.role-switch { background: var(--sky); color: #fff; }
+.role-closer { background: var(--league-master); color: #fff; }
+
+.team-moves {
+  margin-top: 0.3rem;
+  line-height: 1.2;
+}
+
+.team-moves .move-tag {
+  font-size: 0.78rem;
+}
+
+/* Fast move first, outlined in ink so it reads apart from the charged moves */
+.team-moves .fast-move {
+  background: var(--paper);
+  border-color: var(--ink);
+}
+
+.team-beats {
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-soft);
+}
+
+.team-beats strong {
+  color: var(--ink);
+}
+
+.team-watch {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 2px dashed var(--line);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
 /* === Screen 2: Quiz === */
 .quiz-header {
   display: flex;
@@ -411,7 +610,8 @@ button {
 
 /* The spotlight each Pokemon stands on, tinted by its primary type */
 .pokemon-img-wrapper,
-.result-img-wrapper {
+.result-img-wrapper,
+.team-thumb {
   position: relative;
   width: 100%;
   aspect-ratio: 1;
@@ -424,7 +624,8 @@ button {
 }
 
 .pokemon-img-wrapper::before,
-.result-img-wrapper::before {
+.result-img-wrapper::before,
+.team-thumb::before {
   /* little rays behind the Pokemon */
   content: '';
   position: absolute;
