@@ -330,3 +330,100 @@ export function renderSummary(session) {
     roundResults.appendChild(item);
   }
 }
+
+// === Home tabs ===
+
+export function setHomeMode(mode) {
+  for (const tab of document.querySelectorAll('.mode-tab')) {
+    const selected = tab.dataset.mode === mode;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  document.getElementById('panel-quiz').hidden = mode !== 'quiz';
+  document.getElementById('panel-teams').hidden = mode !== 'teams';
+}
+
+// === Team ideas ===
+
+export function renderTeamLeagueChips(options, selectedKey) {
+  const row = document.getElementById('team-league-chips');
+  row.innerHTML = '';
+  for (const opt of options) {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.dataset.league = opt.cp;
+    chip.dataset.cup = opt.cup;
+    chip.dataset.leagueName = opt.title;
+    chip.setAttribute('aria-pressed', String(`${opt.cup}-${opt.cp}` === selectedKey));
+    chip.textContent = opt.title;
+    row.appendChild(chip);
+  }
+}
+
+export function selectTeamLeagueChip(key) {
+  for (const chip of document.querySelectorAll('#team-league-chips .chip')) {
+    const selected = `${chip.dataset.cup}-${chip.dataset.league}` === key;
+    chip.setAttribute('aria-pressed', String(selected));
+    if (selected) chip.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+}
+
+export function removeTeamLeagueChip(cup, cp) {
+  document.querySelector(`#team-league-chips .chip[data-cup="${CSS.escape(cup)}"][data-league="${CSS.escape(String(cp))}"]`)?.remove();
+}
+
+export function showTeamsLoading(show) {
+  document.getElementById('teams-loading').classList.toggle('hidden', !show);
+  if (show) document.getElementById('team-list').innerHTML = '';
+}
+
+export function showTeamsMessage(text) {
+  document.getElementById('team-list').innerHTML = `<p class="teams-message">${esc(text)}</p>`;
+}
+
+function listNames(names) {
+  const bold = names.map(n => `<strong>${esc(n)}</strong>`);
+  if (bold.length <= 1) return bold.join('');
+  return `${bold.slice(0, -1).join(', ')} and ${bold[bold.length - 1]}`;
+}
+
+export function renderTeams(teams) {
+  const list = document.getElementById('team-list');
+  if (!teams.length) {
+    showTeamsMessage("Not enough ranking data to build teams for this league yet.");
+    return;
+  }
+
+  list.innerHTML = teams.map(team => {
+    const members = team.members.map(m => {
+      const imageUrl = getImageUrl(m.id, pokemonMap);
+      const stage = m.types[0] ? `--stage: var(--type-${esc(m.types[0])})` : '';
+      const fast = m.moves.filter(mv => mv.kind === 'fast');
+      const charged = m.moves.filter(mv => mv.kind === 'charged');
+      const tag = mv => `<span class="move-tag" title="${mv.kind === 'fast' ? 'Fast move' : 'Charged move'}">${mv.type ? typeBadge(mv.type) : ''}${esc(mv.name)}</span>`;
+      return `
+        <li class="team-member">
+          <div class="team-thumb" style="${stage}">
+            ${imageUrl ? `<img class="pokemon-img" src="${esc(imageUrl)}" alt="" loading="lazy">` : ''}
+          </div>
+          <div class="team-info">
+            <div class="team-name-row">
+              <span class="role-pill role-${m.role.toLowerCase()}">${m.role}</span>
+              <span class="team-name">${esc(m.name)}</span>
+            </div>
+            <div class="team-moves">${fast.map(mv => tag(mv).replace('move-tag', 'move-tag fast-move')).join('')}${charged.map(tag).join('')}</div>
+            ${m.beats.length ? `<p class="team-beats">Beats ${listNames(m.beats)}</p>` : ''}
+          </div>
+        </li>`;
+    }).join('');
+
+    return `
+      <article class="team-card">
+        <p class="team-cover">Answers <strong>${team.handles}</strong> of the top ${team.threatCount} threats</p>
+        <ul class="team-members">${members}</ul>
+        ${team.weakTo.length
+          ? `<p class="team-watch">Watch out for ${listNames(team.weakTo)}: they beat two of these three.</p>`
+          : '<p class="team-watch">No top threat beats more than one of these three.</p>'}
+      </article>`;
+  }).join('');
+}

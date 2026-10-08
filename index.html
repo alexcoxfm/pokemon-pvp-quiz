@@ -35,6 +35,12 @@
           <p class="app-subtitle">Pokemon GO Battle League</p>
         </header>
 
+        <div class="mode-tabs" role="tablist" aria-label="Mode">
+          <button class="mode-tab" role="tab" id="tab-quiz" data-mode="quiz" aria-selected="true" aria-controls="panel-quiz">Quiz</button>
+          <button class="mode-tab" role="tab" id="tab-teams" data-mode="teams" aria-selected="false" aria-controls="panel-teams" tabindex="-1">Team ideas</button>
+        </div>
+
+        <div id="panel-quiz" role="tabpanel" aria-labelledby="tab-quiz">
         <div class="league-section">
           <h2 class="section-title">Pick a league</h2>
           <div class="league-buttons">
@@ -63,6 +69,18 @@
 
         <div id="session-score" class="session-score hidden">
           <p>Last session: <span id="last-score"></span></p>
+        </div>
+        </div>
+
+        <div id="panel-teams" role="tabpanel" aria-labelledby="tab-teams" hidden>
+          <h2 class="section-title">Pick a league</h2>
+          <div id="team-league-chips" class="chip-row"></div>
+          <p class="teams-intro">Teams of three built from the current PvPoke rankings. Each team is picked so its members cover each other's bad matchups against the top 30 of the meta.</p>
+          <div id="teams-loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Building teams...</p>
+          </div>
+          <div id="team-list" class="team-list" aria-live="polite"></div>
         </div>
 
         <p id="meta-date" class="meta-date"></p>

@@ -2,10 +2,13 @@
 
 import { getGamemaster, getRankings, getFormats, getPokemonData, getMovesData, rankingsExist } from './data.js';
 import { QuizSession, generateExplanation } from './quiz.js';
+import { buildTeams } from './teams.js';
 import {
   showScreen, renderCups, showLastScore, renderQuizHeader,
   renderPokemonCard, showQuizLoading, renderResult,
-  renderExplanation, renderSummary, setPokemonMap, hideCup, showMetaDate, playRoundIntro
+  renderExplanation, renderSummary, setPokemonMap, hideCup, showMetaDate, playRoundIntro,
+  setHomeMode, renderTeamLeagueChips, selectTeamLeagueChip, removeTeamLeagueChip,
+  showTeamsLoading, showTeamsMessage, renderTeams
 } from './ui.js';
 
 let gamemaster = null;
@@ -14,6 +17,23 @@ let movesMap = null;
 let quizRequestId = 0;
 let currentSession = null;
 let lastScore = null;
+let teamsRequestId = 0;
+let teamsKey = null;
+const teamsCache = new Map();
+
+const OPEN_LEAGUES = [
+  { title: 'Great League', cup: 'all', cp: 1500 },
+  { title: 'Ultra League', cup: 'all', cp: 2500 },
+  { title: 'Master League', cup: 'all', cp: 10000 },
+];
+
+function readPref(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function writePref(key, value) {
+  try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }
+}
 
 // === Initialize ===
 
@@ -32,9 +52,19 @@ async function init() {
     // Render special cups from gamemaster, then hide any PvPoke hasn't ranked
     const formats = getFormats(gamemaster);
     renderCups(formats);
+    teamsKey = readPref('teamsLeague') || 'all-1500';
+    if (![...OPEN_LEAGUES, ...formats].some(o => `${o.cup}-${o.cp}` === teamsKey)) teamsKey = 'all-1500';
+    renderTeamLeagueChips([...OPEN_LEAGUES, ...formats], teamsKey);
     for (const f of formats) {
-      rankingsExist(f.cp, f.cup).then(ok => { if (ok === false) hideCup(f.cup, f.cp); });
+      rankingsExist(f.cp, f.cup).then(ok => {
+        if (ok === false) {
+          hideCup(f.cup, f.cp);
+          removeTeamLeagueChip(f.cup, f.cp);
+        }
+      });
     }
+
+    if (readPref('homeMode') === 'teams') showTeamsMode();
 
     // Show last score if available
     try {
@@ -58,6 +88,31 @@ function setupEventListeners() {
       const leagueName = btn.dataset.leagueName;
       startQuiz(league, cup, leagueName);
     }
+  });
+
+  // Quiz / Team ideas tabs (home screen)
+  const tabs = [...document.querySelectorAll('.mode-tab')];
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => {
+      if (tab.dataset.mode === 'teams') showTeamsMode();
+      else { setHomeMode('quiz'); writePref('homeMode', 'quiz'); }
+    });
+    tab.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const next = tabs[(tabs.indexOf(tab) + 1) % tabs.length];
+      next.focus();
+      next.click();
+    });
+  }
+
+  // League chips (team ideas)
+  document.getElementById('team-league-chips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    teamsKey = `${chip.dataset.cup}-${chip.dataset.league}`;
+    writePref('teamsLeague', teamsKey);
+    selectTeamLeagueChip(teamsKey);
+    loadTeams();
   });
 
   // Back button (quiz screen)
@@ -204,6 +259,45 @@ function showSummary() {
   showLastScore(scoreData.score, scoreData.total, scoreData.league);
 
   showScreen('screen-summary');
+}
+
+// === Team ideas ===
+
+function showTeamsMode() {
+  setHomeMode('teams');
+  writePref('homeMode', 'teams');
+  loadTeams();
+}
+
+async function loadTeams() {
+  if (!teamsKey) return; // gamemaster not loaded yet
+  const key = teamsKey;
+  const requestId = ++teamsRequestId;
+
+  if (teamsCache.has(key)) {
+    renderTeams(teamsCache.get(key));
+    return;
+  }
+
+  showTeamsLoading(true);
+  try {
+    const [cup, cp] = [key.slice(0, key.lastIndexOf('-')), key.slice(key.lastIndexOf('-') + 1)];
+    const rankings = await getRankings(cp, cup);
+    // Let the spinner paint before the (short) number crunching
+    await new Promise(r => setTimeout(r, 30));
+    const teams = buildTeams(rankings, pokemonMap, movesMap);
+    teamsCache.set(key, teams);
+    if (requestId !== teamsRequestId) return;
+    showTeamsLoading(false);
+    renderTeams(teams);
+  } catch (err) {
+    if (requestId !== teamsRequestId) return;
+    console.error('Failed to build teams:', err);
+    showTeamsLoading(false);
+    showTeamsMessage(err.status === 404
+      ? "PvPoke hasn't published rankings for this league yet."
+      : "Couldn't load league data. Check your connection and try again.");
+  }
 }
 
 // === Service Worker ===

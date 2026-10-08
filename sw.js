@@ -4,7 +4,7 @@
 // pick up the new code (the app shell is network-first, but this also clears
 // out old caches).
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const APP_CACHE = `app-shell-${CACHE_VERSION}`;
 const DATA_CACHE = `pvpoke-data-${CACHE_VERSION}`;
 const IMAGE_CACHE = `pokemon-images-${CACHE_VERSION}`;
@@ -21,6 +21,7 @@ const APP_SHELL = [
   './js/form-map.js',
   './js/pokemon-mapper.js',
   './js/quiz.js',
+  './js/teams.js',
   './js/type-chart.js',
   './js/ui.js',
   './manifest.json',
