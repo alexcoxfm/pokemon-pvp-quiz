@@ -232,6 +232,15 @@ function typeBadge(type) {
   return `<span class="type-badge type-${esc(type)}">${esc(type)}</span>`;
 }
 
+// Compact move chip: type-colored dot + move name. The fast move gets an ink outline.
+function moveChip(mv, { outline = mv.kind === 'fast' } = {}) {
+  const kind = mv.kind === 'fast' ? 'Fast move' : mv.kind === 'charged' ? 'Charged move' : 'Move';
+  const typeLabel = mv.type ? `${mv.type.charAt(0).toUpperCase()}${mv.type.slice(1)}` : '';
+  return `<span class="move-chip${outline ? ' fast-move' : ''}" title="${kind}${typeLabel ? `, ${typeLabel} type` : ''}">`
+    + (mv.type ? `<i class="type-dot type-${esc(mv.type)}" aria-hidden="true"></i><span class="sr-only">${esc(typeLabel)}: </span>` : '')
+    + `${esc(mv.name)}</span>`;
+}
+
 function section(label, content) {
   return `<div class="explain-label">${label}</div><div class="explain-content">${content}</div>`;
 }
@@ -239,11 +248,22 @@ function section(label, content) {
 export function renderExplanation(explanation) {
   // Type matchup — based on the moves each Pokemon actually uses
   const typesEl = document.getElementById('explain-types');
-  const typeContent = explanation.typeLines.length
-    ? explanation.typeLines.map(l =>
-        `${esc(l.attacker)}'s ${typeBadge(l.moveType)} <strong>${esc(l.move)}</strong> is <span class="${l.cls}">${esc(l.text)}</span> vs ${esc(l.defender)}`
-      ).join('<br>')
-    : '<span class="neutral">No type advantages either way — this one comes down to stats, move pressure and shields.</span>';
+  let typeContent = '<span class="neutral">No type advantages either way — this one comes down to stats, move pressure and shields.</span>';
+  if (explanation.typeLines.length) {
+    const groups = new Map();
+    for (const l of explanation.typeLines) {
+      const key = `${l.attacker}|${l.defender}`;
+      if (!groups.has(key)) groups.set(key, { attacker: l.attacker, defender: l.defender, lines: [] });
+      groups.get(key).lines.push(l);
+    }
+    typeContent = [...groups.values()].map(g => `
+      <div class="tm-group">
+        <p class="tm-head">${esc(g.attacker)} attacking ${esc(g.defender)}</p>
+        <ul class="tm-list">
+          ${g.lines.map(l => `<li>${moveChip({ name: l.move, type: l.moveType }, { outline: false })}<span class="verdict verdict-${l.cls}">${esc(l.text.charAt(0).toUpperCase() + l.text.slice(1))}</span></li>`).join('')}
+        </ul>
+      </div>`).join('');
+  }
   typesEl.innerHTML = section('Type matchup <span class="explain-hint">(recommended moves)</span>', typeContent);
 
   // Rating
@@ -261,7 +281,7 @@ export function renderExplanation(explanation) {
     const label = isBattle
       ? 'PvPoke battle rating <span class="explain-hint">(1v1, 500 = even)</span>'
       : 'Overall ranking score <span class="explain-hint">(no head-to-head data)</span>';
-    ratingEl.innerHTML = section(label, bar(winner, winnerRating, 'winner-bar') + bar(loser, loserRating, 'loser-bar'));
+    ratingEl.innerHTML = section(label, `<div class="rating-grid">${bar(winner, winnerRating, 'winner-bar')}${bar(loser, loserRating, 'loser-bar')}</div>`);
   } else {
     ratingEl.innerHTML = section('PvPoke battle rating', '<span class="neutral">Dead even — 500 to 500</span>');
   }
@@ -271,10 +291,12 @@ export function renderExplanation(explanation) {
   const movesetRows = explanation.sides.filter(sd => sd.moves.length).map(sd => {
     const fast = sd.moves.filter(m => m.kind === 'fast');
     const charged = sd.moves.filter(m => m.kind === 'charged');
-    const tag = m => `<span class="move-tag">${m.type ? typeBadge(m.type) : ''}${esc(m.name)}</span>`;
     return `<div class="moveset-row">
       <div class="moveset-name">${esc(sd.name)}${sd.isWinner ? ' <span class="advantage">(winner)</span>' : ''}</div>
-      <div class="moveset-moves">Fast: ${fast.map(tag).join(' ')}<br>Charged: ${charged.map(tag).join(' ')}</div>
+      <dl class="moveset-grid">
+        <dt>Fast</dt><dd>${fast.map(m => moveChip(m, { outline: false })).join('')}</dd>
+        <dt>Charged</dt><dd>${charged.map(m => moveChip(m)).join('')}</dd>
+      </dl>
     </div>`;
   });
   movesetEl.innerHTML = movesetRows.length ? section('Recommended movesets', movesetRows.join('')) : '';
@@ -400,7 +422,6 @@ export function renderTeams(teams) {
       const stage = m.types[0] ? `--stage: var(--type-${esc(m.types[0])})` : '';
       const fast = m.moves.filter(mv => mv.kind === 'fast');
       const charged = m.moves.filter(mv => mv.kind === 'charged');
-      const tag = mv => `<span class="move-tag" title="${mv.kind === 'fast' ? 'Fast move' : 'Charged move'}">${mv.type ? typeBadge(mv.type) : ''}${esc(mv.name)}</span>`;
       return `
         <li class="team-member">
           <div class="team-thumb" style="${stage}">
@@ -411,7 +432,7 @@ export function renderTeams(teams) {
               <span class="role-pill role-${m.role.toLowerCase()}">${m.role}</span>
               <span class="team-name">${esc(m.name)}</span>
             </div>
-            <div class="team-moves">${fast.map(mv => tag(mv).replace('move-tag', 'move-tag fast-move')).join('')}${charged.map(tag).join('')}</div>
+            <div class="team-moves">${fast.map(m => moveChip(m)).join('')}${charged.map(m => moveChip(m)).join('')}</div>
             ${m.beats.length ? `<p class="team-beats">Beats ${listNames(m.beats)}</p>` : ''}
           </div>
         </li>`;

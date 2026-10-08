@@ -53,6 +53,14 @@
   --radius-btn: 16px;
   --radius-sm: 10px;
   --max-width: 480px;
+
+  /* Spacing scale: use these instead of one-off values */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
   --transition: 0.15s ease;
 
   --sparkle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0C13 8 16 11 24 12C16 13 13 16 12 24C11 16 8 13 0 12C8 11 11 8 12 0Z'/%3E%3C/svg%3E");
@@ -177,7 +185,7 @@ button {
 .app-header {
   position: relative;
   text-align: center;
-  padding: 2.25rem 0 1.75rem;
+  padding: var(--s6) 0 var(--s5);
 }
 
 .app-title {
@@ -223,24 +231,25 @@ button {
   color: #fff;
   -webkit-text-stroke: 5px var(--ink);
   paint-order: stroke fill;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--s3);
 }
 
 .league-buttons {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  /* 16px plus the 5px drop shadow reads as an even gap */
+  gap: var(--s4);
 }
 
 .league-btn {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: var(--s3);
   width: 100%;
-  padding: 0.85rem 1.1rem;
+  padding: var(--s3) var(--s4);
   border-radius: var(--radius-btn);
   text-align: left;
-  min-height: 68px;
+  min-height: 64px;
   transition: transform var(--transition), box-shadow var(--transition);
 }
 
@@ -295,7 +304,7 @@ button {
 }
 
 .cups-section {
-  margin-top: 1.75rem;
+  margin-top: var(--s6);
 }
 
 .cups-section .league-name {
@@ -304,7 +313,7 @@ button {
 
 .session-score {
   text-align: center;
-  margin-top: 2rem;
+  margin-top: var(--s5);
   font-size: 1rem;
   font-weight: 800;
 }
@@ -322,7 +331,7 @@ button {
   grid-template-columns: 1fr 1fr;
   gap: 4px;
   padding: 4px;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--s5);
   border-radius: 999px;
   background: var(--ink);
 }
@@ -380,8 +389,8 @@ button {
 }
 
 .teams-intro {
-  margin: 0.5rem 0 1.25rem;
-  padding: 0.75rem 1rem;
+  margin: var(--s2) 0 var(--s5);
+  padding: var(--s3) var(--s4);
   border-radius: var(--radius-btn);
   background: rgba(255, 255, 255, 0.75);
   font-size: 0.9rem;
@@ -397,7 +406,7 @@ button {
 .team-list {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--s5);
 }
 
 .team-card {
@@ -405,7 +414,7 @@ button {
   border: var(--outline);
   box-shadow: var(--lift);
   border-radius: var(--radius-panel);
-  padding: 0.9rem 1rem 1rem;
+  padding: var(--s4);
 }
 
 .team-cover {
@@ -416,7 +425,7 @@ button {
   border-radius: 999px;
   background: var(--mist);
   border: 2px solid var(--line);
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--s3);
 }
 
 .team-cover strong {
@@ -428,20 +437,23 @@ button {
 
 .team-members {
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
 }
 
 .team-member {
   display: flex;
-  gap: 0.8rem;
+  gap: var(--s3);
   align-items: flex-start;
+}
+
+.team-member + .team-member {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 2px dashed var(--line);
 }
 
 .team-member .team-thumb {
   flex-shrink: 0;
-  width: 76px;
+  width: 64px;
   margin-bottom: 0;
   border-radius: 14px;
   border: 2px solid var(--ink);
@@ -459,7 +471,7 @@ button {
 .team-name-row {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: var(--s2);
   flex-wrap: wrap;
 }
 
@@ -482,22 +494,11 @@ button {
 .role-closer { background: var(--league-master); color: #fff; }
 
 .team-moves {
-  margin-top: 0.3rem;
-  line-height: 1.2;
-}
-
-.team-moves .move-tag {
-  font-size: 0.78rem;
-}
-
-/* Fast move first, outlined in ink so it reads apart from the charged moves */
-.team-moves .fast-move {
-  background: var(--paper);
-  border-color: var(--ink);
+  margin-top: var(--s2);
 }
 
 .team-beats {
-  margin-top: 0.3rem;
+  margin-top: var(--s2);
   font-size: 0.85rem;
   line-height: 1.4;
   color: var(--text-soft);
@@ -508,8 +509,8 @@ button {
 }
 
 .team-watch {
-  margin-top: 0.9rem;
-  padding-top: 0.75rem;
+  margin-top: var(--s4);
+  padding-top: var(--s3);
   border-top: 2px dashed var(--line);
   font-size: 0.88rem;
   line-height: 1.4;
@@ -570,12 +571,33 @@ button {
   padding: 0.25rem 0.7rem;
 }
 
+/* The quiz screen fills the viewport and centers the matchup in the space
+   below the header, instead of leaving half the screen empty */
+#screen-quiz .container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+#screen-quiz .quiz-prompt {
+  margin-top: auto;
+}
+
+#screen-quiz .pokemon-matchup {
+  margin-bottom: auto;
+  padding-bottom: 8vh;
+}
+
+#screen-quiz .loading {
+  margin: auto 0;
+}
+
 .quiz-prompt {
   text-align: center;
   font-family: var(--font-display);
   font-weight: 400;
   font-size: 2.1rem;
-  margin: 1.25rem 0 1.25rem;
+  margin: var(--s5) 0;
   color: #fff;
   -webkit-text-stroke: 7px var(--ink);
   paint-order: stroke fill;
@@ -807,7 +829,8 @@ button {
   text-align: center;
   padding: 0.9rem 1rem;
   border-radius: var(--radius-panel);
-  margin: 0.25rem 0 1rem;
+  /* extra room so the Winner tag doesn't crowd the banner */
+  margin: var(--s1) 0 var(--s5);
 }
 
 .result-banner h2 {
@@ -872,7 +895,7 @@ button {
   align-items: stretch;
   gap: 0.75rem;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--s5);
 }
 
 .result-pokemon {
@@ -930,12 +953,12 @@ button {
 
 .explanation {
   border-radius: var(--radius-panel);
-  padding: 0.25rem 1.1rem;
-  margin-bottom: 1.25rem;
+  padding: var(--s1) var(--s4);
+  margin-bottom: var(--s5);
 }
 
 .explain-section {
-  padding: 0.9rem 0;
+  padding: var(--s4) 0;
   border-bottom: 2px dashed var(--line);
 }
 
@@ -952,7 +975,7 @@ button {
   font-weight: 400;
   font-size: 1.15rem;
   color: var(--sky-deep);
-  margin-bottom: 0.35rem;
+  margin-bottom: var(--s2);
 }
 
 .explain-content {
@@ -984,8 +1007,106 @@ button {
 }
 
 .moveset-row + .moveset-row {
-  margin-top: 0.6rem;
+  margin-top: var(--s3);
 }
+
+.moveset-grid {
+  display: grid;
+  grid-template-columns: 4.25rem 1fr;
+  gap: 6px var(--s2);
+  margin-top: 6px;
+}
+
+.moveset-grid dt {
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--text-soft);
+  padding-top: 5px; /* matches the chip's border + padding so labels sit on the chip text */
+}
+
+.moveset-grid dd,
+.team-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Compact move chips: type dot + name. Fast move outlined in ink. */
+.move-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background: var(--mist);
+  border: 2px solid var(--line);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.move-chip.fast-move {
+  background: var(--paper);
+  border-color: var(--ink);
+}
+
+.type-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Type matchup rows: move on the left, verdict on the right */
+.tm-group + .tm-group {
+  margin-top: var(--s3);
+}
+
+.tm-head {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-soft);
+  margin-bottom: 6px;
+}
+
+.tm-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tm-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px var(--s2);
+}
+
+.verdict {
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.verdict-advantage { background: #dcf5e6; color: var(--grass-text); }
+.verdict-disadvantage { background: #fde2e8; color: var(--berry-text); }
+.verdict-neutral { background: var(--mist); color: var(--text-soft); }
 
 .moveset-name {
   font-weight: 800;
@@ -1013,16 +1134,20 @@ button {
   vertical-align: middle;
 }
 
-.rating-bar {
-  display: flex;
+/* One grid for both bars, so names size to the longer one and bars line up */
+.rating-grid {
+  display: grid;
+  grid-template-columns: fit-content(55%) 1fr 2.5rem;
   align-items: center;
-  gap: 0.6rem;
-  margin-top: 0.4rem;
+  gap: var(--s3) 10px;
+  margin-top: var(--s1);
+}
+
+.rating-bar {
+  display: contents;
 }
 
 .rating-name {
-  min-width: 80px;
-  max-width: 40%;
   font-size: 0.85rem;
   font-weight: 800;
   overflow: hidden;
@@ -1093,7 +1218,7 @@ button {
   padding: 0.7rem 0.85rem;
   border-radius: var(--radius-btn);
   box-shadow: 0 3px 0 var(--ink);
-  margin-bottom: 0.65rem;
+  margin-bottom: var(--s3);
 }
 
 .round-result-icon {
@@ -1146,7 +1271,7 @@ button {
 .summary-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: var(--s4);
   padding: 1rem 0;
 }
 
